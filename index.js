@@ -1,106 +1,309 @@
-const admin = require("./node_modules/firebase-admin");
-const serviceAccount = require("./creds.json");
-const { Timestamp } = require("firebase/firestore");
+const cron = require("node-cron");
+const https = require("https");
+const axios = require("axios");
+const cheerio = require("cheerio");
+const { sendData } = require("./firebase");
+const token = "5730954289:AAGDPIDwIyhae6aQwb7Y4T7_Gf6PrhyPd30";
+const chatId = "404000198";
+const host = "https://drama.nontondrama.lol/";
 
-//const data = require('../drakor/serialData-page-9.json');
 
-const collectionKey = "seriesData"; //name of the collection
-admin.initializeApp({
- credential: admin.credential.cert(serviceAccount),
-});
-const firestore = admin.firestore();
-const settings = { timestampsInSnapshots: true };
-firestore.settings(settings);
+sendMessage('server is on')
 
-exports.sendData = async function (data) {
- //const today = Timestamp.fromDate(new Date());
- const today = admin.firestore.FieldValue.serverTimestamp()
- let updated = 0;
- let added = 0;
+async function ekstrak(url) {
+ const query = url
+  .match(
+   /^(https?\:)\/\/(([^:\/?#]*)(?:\:([0-9]+))?)([\/]{0,1}[^?#]*)(\?[^#]*|)(#.*|)$/
+  )[5]
+  .replaceAll("/", "");
+ //console.log(query)
+ const config = {
+  headers: {
+   "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+   "Accept-Encoding": "application/json",
+  },
+ };
 
- //console.log(today)
- if (data && typeof data === "object") {
-  for (const index in data) {
-   data[index].uploaded = today
-//console.log(data[index])
-    const docRef = firestore.collection("seriesData").doc(data[index].id);
+ let result = await axios.get(url, config).then((res) => {
+  let html = res.data;
+  let $ = cheerio.load(html);
+  let server_list = {};
 
-    try {
-      const doc = await docRef.get();
-      if (doc.exists) {
-       updated++
-        docRef.update(data[index])
-        
-        //console.log("Document ID sudah ada di database" + index);
-      } else {
-       docRef.set(data[index])
-       //docRef.update(data[index])
-        added++;
-        //console.log("Document ID tidak ada di database");
-        // Menambahkan data ke database disini
+  let data = {};
+
+  // this for find server embed
+  let list = $("section").find("ul#loadProviders");
+  list.children().each(function () {
+   const server = $(this).find("a").text();
+   const link = $(this).find("a").attr("href");
+
+   server_list[server] = {};
+
+   server_list[server]["link"] = link;
+   server_list[server]["quality"] = [];
+
+   $(this)
+    .find("span")
+    .each(function (v, i) {
+     server_list[server]["quality"].push($(this).text());
+    });
+  });
+  return {
+   server_embed: server_list,
+  };
+ });
+
+ const cookie = await getCookie(query);
+ let get_download = await axios({
+  method: "post",
+  url: "https://dl.indexmovies.xyz/verifying.php",
+  data: {
+   slug: query,
+  },
+  headers: {
+   "user-agent":
+    "Mozilla/5.0 (Linux; Android 12; CPH2043) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36",
+   "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+   "Accept-Encoding": "application/json",
+   cookie: cookie,
+  },
+ }).then((res) => {
+  let data = res.data;
+  const $ = cheerio.load(data);
+  let list = $("tbody > tr");
+  let index = {
+   link_download: [],
+  };
+  list.each(function (v, i) {
+   let item = $(this).find("strong").text();
+   let link = $(this).find("a").attr("href");
+   let quality = $(this).find("a").attr("class").substring(9, 13);
+   index["link_download"].push({
+    item,
+    link,
+    quality,
+   });
+  });
+  //console.log(index)
+  return index;
+ });
+ let final = {
+  ...result,
+  ...get_download,
+ };
+
+ //  console.log(final)
+ return final;
+}
+
+async function getCookie(id) {
+ // Logger.info('from cookie')
+ // console.log('2')
+
+ const config = {
+  headers: {
+   "user-agent":
+    "Mozilla/5.0 (Linux; Android 12; CPH2043) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36",
+
+   "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+
+   "Accept-Encoding": "application/json",
+  },
+ };
+
+ let result = await axios
+  .get("https://dl.indexmovies.xyz/get/" + id, config)
+  .then((res) => {
+   let data = res.data;
+   const search = "setCookie('validate'";
+   let idx = data.indexOf(search);
+   let hasil = data.substring(idx + 23, idx + 63);
+   //console.log("");
+   //Logger.warning(data)
+   return "validate=" + hasil;
+  });
+ // console.log(result);
+ return result;
+}
+
+async function meta(url) {
+ //const self = this;
+ //console.log(url)
+ const result = await axios(url).then(({ data: html }) => {
+  //console.log(html)
+  const $ = cheerio.load(html);
+  const serial = $(".serial-wrapper");
+
+  const h4 = serial.find("h4");
+  const episodeList = serial.find(".episode-list ");
+  const index = { id: "id", seasons: [] };
+
+  //for id
+  const id = url
+   .match(
+    /^(https?\:)\/\/(([^:\/?#]*)(?:\:([0-9]+))?)([\/]{0,1}[^?#]*)(\?[^#]*|)(#.*|)$/
+   )[5]
+   .replaceAll("/", "");
+  index.id = id;
+  //console.log(id);
+
+  h4.each(function () {
+   const season = $(this)
+    .text()
+    .match(/Season (\d+)/)[1];
+   index.seasons.push({ season: parseInt(season), episodes: [] });
+  });
+
+  Promise.all(
+   episodeList.each(async function (i, v) {
+    const episode = $(this).find("a");
+
+    const list = [];
+
+    Promise.all(
+     episode.each(async function () {
+      const episodeList = $(this).text();
+      const link = $(this).attr("href");
+      if ($(this).text() !== "Info") {
+       list.push({ episode: episodeList, link, download: [], embed: [] });
       }
-    } catch (error) {
-      console.log("Error:", error);
-    }
-    
+     })
+    );
+    // console.log(list);
+
+    index.seasons[i].episodes = index.seasons[i].episodes.concat(list);
+   })
+  );
+  index.seasons.sort((a, b) => a.season - b.season);
+
+  for (const movie of index.seasons) {
+   movie.episodes.sort((a, b) => a.episode - b.episode);
   }
-  
-  
 
-  //console.log(`${added} document baru ditambahkan ke database`);
-  //console.log(`${updated} document sudah ada di database dan diperbarui`);
+  return index;
+ });
 
-  return ({ updated, added });
+ // console.log("mencari data :" + result.id);
 
-  //old loop
-  /*
-Object.keys(data).forEach(docKey => {
- data[docKey].uploaded = today
-//console.log(data[docKey])
-
-// Mengambil referensi ke document di Firestore
-//var docRef = firestore.doc(`seriesData/${data[docKey].id}`);
-const docRef = firestore.collection('seriesData').doc(data[docKey].id)
-
-// Mencari document dengan document ID yang diberikan
-docRef.get().then(function(doc) {
-  if (doc.exists) {
-   //docRef.update(data[docKey])
-   updated+1
-    console.log('Document ID sudah ada di database');
-  } else {
-   //docRef.set(data[docKey])
-   added+1
-    console.log('Document ID tidak ada di database');
-    // Menambahkan data ke database disini
+ for (const [index, movie] of result.seasons.entries()) {
+  //console.log(`Movie ${index + 1}: ${movie.season}`);
+  for (const [episodeIndex, episode] of movie.episodes.entries()) {
+   /*
+   console.log(
+    `Episode ${episodeIndex + 1}: ${episode.episode} dari season ${index + 1}`
+   );
+   */
+   const data = await ekstrak(episode.link);
+   const embed = data.server_embed;
+   const download = data.link_download;
+   result.seasons[index].episodes[episodeIndex].embed = embed;
+   result.seasons[index].episodes[episodeIndex].download = download;
   }
-}).catch(function(error) {
-  console.log('Error:', error);
-});
-
-
-
-
-
-
-
-
-});
-*/
  }
- //console.log(updated)
 
- //return ({updated, added})
-};
+ //console.log(JSON.stringify(result, null, 1));
+ return result;
+}
 
-//sendData(require('../drakor/serialData-page-9.json'))
+async function latestPage() {
+ const { data: html } = await axios("https://drama.nontondrama.lol/latest");
+ const $ = cheerio.load(html);
 
-/*
- firestore.collection(collectionKey).doc(docKey).set(data[docKey]).then((res) => {
-    console.log("Document " + docKey + " successfully written!");
-}).catch((error) => {
-   console.error("Error writing document: ", error);
+ const pageData = [];
+ const data = [];
+ // Ambil data yang diinginkan dari halaman web
+ const list = $("#grid-wrapper > div");
+ const index = [];
+ const TMDB = [];
+
+ list.find("figure > a").each(async function () {
+  let title = $(this).find("img").attr("alt");
+  let link = $(this).attr("href");
+  index.push({ link });
+ });
+ for (const link of index) {
+  const oke = await meta(link.link);
+  data.push(oke);
+ }
+
+ return data;
+ //console.log(data)
+}
+
+async function scrapingData() {
+ let retryCount = 0;
+
+ async function attemptFetch() {
+  try {
+   return await latestPage();
+  } catch (error) {
+   if (retryCount >= 3) {
+    sendMessage(
+     `Fetch data failed after 3 retries \n date = ${new Date().toDateString()}`
+    );
+    //console.error('Fetch data failed after 3 retries');
+    return;
+   }
+
+   retryCount += 1;
+   sendMessage(
+    `Fetch data failed. Retrying in 5 seconds... (attempt ${retryCount}) \n date =${new Date().toDateString()}`
+   );
+   //console.log(`Fetch data failed. Retrying in 5 seconds... (attempt ${retryCount})`);
+   setTimeout(attemptFetch, 5000);
+  }
+ }
+
+ return await attemptFetch();
+}
+
+async function sendMessage(messages) {
+ const message = encodeURIComponent(messages);
+ const options = {
+  hostname: "api.telegram.org",
+  port: 443,
+  path: `/bot${token}/sendMessage?chat_id=${chatId}&text=${message}`,
+  method: "POST",
+ };
+ const req = https.request(options, (res) => {
+  //console.log(`statusCode: ${res.statusCode}`);
+
+  res.on("data", (d) => {
+   process.stdout.write(d);
+  });
+ });
+
+ req.on("error", (error) => {
+  console.error(error);
+ });
+
+ req.end();
+}
+
+function duration(duration) {
+ const hours = Math.floor(duration / (1000 * 60 * 60));
+ const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+ const seconds = Math.floor((duration % (1000 * 60)) / 1000);
+ return `${hours}:${minutes}:${seconds}`;
+}
+
+cron.schedule("40 11 * * *", async () => {
+ sendMessage("Running a job for scraping and upload database");
+ //console.log('start')
+ const start = performance.now();
+ const data = await latestPage();
+ //const data = require("../drakor/serialData-page-44.json")
+ const end = performance.now();
+ //console.log("end");
+ const waktu = duration(end - start / 1000);
+ const firebase = await sendData(data);
+ //const firebase = await sendData(require("../drakor/serialData-page-44.json"));
+
+ sendMessage(
+  `Message = success\nTotal = ${data.length} \nDuration = ${waktu} \n Date = ${new Date().toDateString()} \n\n UPLOAD DATABASE \n Updated = ${
+   firebase.updated
+  } \n Added = ${firebase.added}`
+ );
+
+
 });
-
-
-*/
