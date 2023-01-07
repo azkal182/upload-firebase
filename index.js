@@ -287,6 +287,8 @@ function duration(duration) {
  return `${hours}:${minutes}:${seconds}`;
 }
 
+/*
+
 cron.schedule("25 12 * * *", async () => {
  sendMessage("Running a job for scraping and upload database");
  //console.log('start')
@@ -308,3 +310,17 @@ cron.schedule("25 12 * * *", async () => {
 
 
 });
+*/
+
+const express = require('express')
+const app = express()
+const port = 3000
+
+app.get('/', (req, res) => {
+ sendMessage("Running a job for scraping and upload database");
+  res.send('Hello World!')
+})
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`)
+})
