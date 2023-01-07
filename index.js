@@ -183,7 +183,7 @@ async function meta(url) {
   return index;
  });
 
- // console.log("mencari data :" + result.id);
+ console.log("mencari data :" + result.id);
 
  for (const [index, movie] of result.seasons.entries()) {
   //console.log(`Movie ${index + 1}: ${movie.season}`);
@@ -316,15 +316,19 @@ const express = require('express')
 const app = express()
 const port = 3000
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
  sendMessage("Running a job for scraping and upload database");
   res.send('Hello World!')
+  const start = performance.now();
  const data = await latestPage();
+  const end = performance.now();
+
+ const waktu = duration(end - start / 1000);
  const firebase = await sendDatsendData
 sendMessage(
-  `Message = success\nTotal = ${data.length} \nDuration =  \n Date = ${new Date().toDateString()} \n\n UPLOAD DATABASE \n Updated = ${
+  `Message = success\nTotal = ${data.length} \nDuration =  ${waktu} \n Date = ${new Date().toDateString()} \n\n UPLOAD DATABASE \nUpdated = ${
    firebase.updated
-  } \n Added = ${firebase.added}`
+  } \nAdded = ${firebase.added}`
  );
 })
 
