@@ -319,6 +319,13 @@ const port = 3000
 app.get('/', (req, res) => {
  sendMessage("Running a job for scraping and upload database");
   res.send('Hello World!')
+ const data = await latestPage();
+ const firebase = await sendDatsendData
+sendMessage(
+  `Message = success\nTotal = ${data.length} \nDuration =  \n Date = ${new Date().toDateString()} \n\n UPLOAD DATABASE \n Updated = ${
+   firebase.updated
+  } \n Added = ${firebase.added}`
+ );
 })
 
 app.listen(port, () => {
