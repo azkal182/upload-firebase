@@ -8,9 +8,9 @@
   integrity sha512-T3Z9oHybU+0vZlY9CiDSJQTD5ZapcW18ZctFMi0MOAl/4BjFF4ul7NVSARLdbGO5vDqy9eQiGTV0LtKfvCYvcg==
 
 "@fastify/busboy@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@fastify/busboy/-/busboy-1.1.0.tgz#4472f856e2bb5a9ee34ad64b93891b73b73537ca"
-  integrity sha512-Fv854f94v0CzIDllbY3i/0NJPNBRNLDawf3BTYVGCe9VrIIs3Wi7AFx24F9NzCxdf0wyx/x0Q9kEVnvDOPnlxA==
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@fastify/busboy/-/busboy-1.2.0.tgz#0db842e132cfc282b753eab70ab606f2475acee7"
+  integrity sha512-VUv6/dbzWJhOXXEVCSXbgk21zeIErxbTJ//OGXVauqTjpZtzX+qslJ6gJqR+FyThgPvOKbrzsjnkykYwf8VGdQ==
   dependencies:
     text-decoding "^1.0.0"
 
