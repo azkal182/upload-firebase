@@ -287,7 +287,7 @@ function duration(duration) {
  return `${hours}:${minutes}:${seconds}`;
 }
 
-cron.schedule("33 00 * * *", async () => {
+cron.schedule("25 12 * * *", async () => {
  sendMessage("Running a job for scraping and upload database");
  //console.log('start')
  //const start = performance.now();
