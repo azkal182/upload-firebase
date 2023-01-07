@@ -290,12 +290,13 @@ function duration(duration) {
 cron.schedule("33 00 * * *", async () => {
  sendMessage("Running a job for scraping and upload database");
  //console.log('start')
- const start = performance.now();
+ //const start = performance.now();
  const data = await latestPage();
  //const data = require("../drakor/serialData-page-44.json")
- const end = performance.now();
+ //const end = performance.now();
  //console.log("end");
- const waktu = duration(end - start / 1000);
+ //const waktu = duration(end - start / 1000);
+ const waktu = duration(10000);
  const firebase = await sendData(data);
  //const firebase = await sendData(require("../drakor/serialData-page-44.json"));
 
