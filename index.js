@@ -325,7 +325,7 @@ cron.schedule("15 23 * * *", async () => {
 const express = require('express')
 const app = express()
 const port = 3000
-app.get('/seriesdata', async (req, res) => {
+app.get('/', async (req, res) => {
  res.send('oke')
 })
 
