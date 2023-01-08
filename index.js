@@ -10,7 +10,7 @@ const host = "https://drama.nontondrama.lol/";
 axios.create({
             httpsAgent: new https.Agent({keepAlive: true}),
         });
-sendMessage('server is on')
+//sendMessage('server is on')
 
 async function ekstrak(url) {
  const query = url
@@ -291,7 +291,7 @@ function duration(duration) {
 
 /*
 
-cron.schedule("25 12 * * *", async () => {
+cron.schedule("15 23 * * *", async () => {
  sendMessage("Running a job for scraping and upload database");
  //console.log('start')
  //const start = performance.now();
@@ -301,7 +301,12 @@ cron.schedule("25 12 * * *", async () => {
  //console.log("end");
  //const waktu = duration(end - start / 1000);
  const waktu = duration(10000);
- const firebase = await sendData(data);
+ 
+ 
+ console.log(waktu)
+ console.log(process.memoryUsage())
+
+ //const firebase = await sendData(data);
  //const firebase = await sendData(require("../drakor/serialData-page-44.json"));
 
  sendMessage(
@@ -312,26 +317,35 @@ cron.schedule("25 12 * * *", async () => {
 
 
 });
+
 */
+
+
 
 const express = require('express')
 const app = express()
 const port = 3000
+app.get('/seriesdata', async (req, res) => {
+ res.send('oke')
+})
 
-app.get('/', async (req, res) => {
- sendMessage("Running a job for scraping and upload database");
+app.get('/seriesdata', async (req, res) => {
   res.send('Hello World!')
+ sendMessage("Running a job for scraping and upload database");
   const start = performance.now();
  const data = await latestPage();
   const end = performance.now();
 
  const waktu = duration(end - start / 1000);
+ console.log(process.memoryUsage())
+ 
  const firebase = await sendDatsendData
 sendMessage(
   `Message = success\nTotal = ${data.length} \nDuration =  ${waktu} \n Date = ${new Date().toDateString()} \n\n UPLOAD DATABASE \nUpdated = ${
    firebase.updated
   } \nAdded = ${firebase.added}`
  );
+ 
 })
 
 app.listen(port, () => {
